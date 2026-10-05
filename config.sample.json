@@ -1,0 +1,52 @@
+{
+  "app_name": "GoFile",
+  "logo_url": "",
+  "listen": "127.0.0.1:9001",
+  "root": "./files",
+  "path_prefix": "",
+  "assets": "",
+  "allow": {
+    "write": true,
+    "delete": true,
+    "upload": true,
+    "urlfetch": true,
+    "archive": true,
+    "extract": true,
+    "edit": true,
+    "chmod": true,
+    "hash": true,
+    "webdav": true
+  },
+  "deny_ext": [],
+  "hidden": [
+    "*.db-wal",
+    "*.db-shm",
+    "*.lock",
+    "*.log",
+    ".backups"
+  ],
+  "allow_symlink": false,
+  "trust_proxy": true,
+  "enable_cors": false,
+  "index_mode": "off",
+  "compress": "low",
+  "max_upload_bytes": 50000000000,
+  "chunk_bytes": 4000000,
+  "stall_timeout": 30,
+  "response_header_timeout": 20,
+  "min_free_bytes": 0,
+  "theme": "auto",
+  "lang": "auto",
+  "log_file": "",
+  "audit_log": true,
+  "rate_limit": {
+    "max_fails": 8,
+    "window_s": 60,
+    "lockout_s": 30
+  },
+  "enable_backup": true,
+  "backup_copies": 3,
+  "session_name": "gofiles_session",
+  "cookie_secure": "auto",
+  "allow_private_urlfetch": false
+}

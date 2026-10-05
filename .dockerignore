@@ -1,0 +1,9 @@
+.git
+.github
+*.log
+*.pid
+*.tmp
+*.gofm-tmp
+state/
+dist/
+release-artifacts/

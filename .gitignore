@@ -1,0 +1,20 @@
+# Compiled binaries
+gofm
+gofiles
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+/tmp/
+
+# Runtime state & logs
+state/
+*.log
+*.pid
+*.tmp
+*.gofm-tmp
+.DS_Store

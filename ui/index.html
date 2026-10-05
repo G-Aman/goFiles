@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto" data-density="comfortable">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>goFiles</title>
+<link rel="icon" type="image/svg+xml" href="__PREFIX__/assets/favicon.svg">
+<link rel="stylesheet" href="__PREFIX__/assets/app.css?v=20261004d">
+<script>/* i18n dictionary injected server-side (string replacement, before app.js) */
+window.GOFM_I18N=__I18N__;</script>
+</head>
+<body>
+<noscript><div class="noscript-banner">GoFile needs JavaScript enabled. Enable it and reload this page.</div></noscript>
+
+<!-- ============ FIRST-RUN SETUP ============ -->
+<!-- Shown only while no account exists. Claims the admin, then the app runs
+     normally. This is the only way to create the first user. -->
+<section id="setup" hidden aria-label="Create administrator">
+  <div class="login-card">
+    <img class="login-logo" src="__PREFIX__/assets/logo.svg" alt="GoFile" style="height:48px;width:auto;margin:0 auto 16px;display:block;">
+    <p class="login-sub">No account yet. Create the administrator to continue.</p>
+    <form id="setup-form" class="login-form" autocomplete="on">
+      <label class="field-label" for="setup-user"><span>Admin username</span>
+        <input id="setup-user" name="username" type="text" autocomplete="username" spellcheck="false" required>
+      </label>
+      <label class="field-label" for="setup-pass"><span>Password</span>
+        <input id="setup-pass" name="password" type="password" autocomplete="new-password"  required>
+      </label>
+      <label class="field-label" for="setup-pass2"><span>Repeat password</span>
+        <input id="setup-pass2" name="password2" type="password" autocomplete="new-password"  required>
+      </label>
+      <p id="setup-err" class="login-err" role="alert" aria-live="assertive"></p>
+      <button id="setup-btn" class="btn btn-primary btn-block" type="submit">Create administrator</button>
+      <p class="login-sub">Until you do, this server is read-only for everyone.</p>
+    </form>
+  </div>
+</section>
+
+<!-- ============ LOGIN ============ -->
+<section id="login" hidden aria-label="Sign in">
+  <button id="login-close" class="btn btn-icon login-close" type="button" aria-label="Close">
+    <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+  </button>
+  <div class="login-card">
+    <img class="login-logo" src="__PREFIX__/assets/logo.svg" alt="GoFile" style="height:48px;width:auto;margin:0 auto 16px;display:block;">
+    <p class="login-sub" data-i18n="Sign in to continue">Sign in to continue</p>
+    <form id="login-form" class="login-form" autocomplete="on">
+      <label class="field-label" for="login-user"><span data-i18n="Username">Username</span>
+        <input id="login-user" name="username" type="text" autocomplete="username" spellcheck="false" required>
+      </label>
+      <label class="field-label" for="login-pass"><span data-i18n="Password">Password</span>
+        <input id="login-pass" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <input id="login-csrf" name="csrf" type="hidden" value="">
+      <p id="login-err" class="login-err" role="alert" aria-live="assertive"></p>
+      <button id="login-btn" class="btn btn-primary btn-block" type="submit"><span data-i18n="Sign in">Sign in</span></button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<main id="app" hidden aria-label="File manager">
+
+  <!-- Scrim is a SIBLING of #rail, not a child: a position:fixed child of a
+       positioned rail stacks inside the rail's context, so it painted over
+       the sidebar and made every rail control unclickable. -->
+  <div class="rail-scrim" id="rail-scrim" hidden></div>
+
+  <!-- ---------- left rail ---------- -->
+  <aside id="rail" aria-label="Navigation">
+    <div class="rail-brand">
+      <a class="brand-link" href="__PREFIX__/" aria-label="GoFile home">
+        <img class="brand-logo" src="__PREFIX__/assets/logo.svg" alt="GoFile">
+      </a>
+      <button id="rail-collapse" class="btn btn-icon" type="button" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="rail">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-panel"/></svg>
+      </button>
+    </div>
+
+    <div class="rail-new-wrap">
+      <button id="rail-new" class="btn btn-new" hidden type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="new-menu" aria-label="Create new">
+        <span class="new-plus" aria-hidden="true"><svg class="i" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="new-label" data-i18n="New">New</span>
+      </button>
+      <div id="new-menu" class="menu surface" role="menu" aria-label="Create new" hidden>
+        <button class="menu-item" role="menuitem" type="button" data-action="mkdir">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-folder-plus"/></svg>
+          <span class="menu-label" data-i18n="New folder">New folder</span>
+        </button>
+        <button class="menu-item" role="menuitem" type="button" data-action="newfile">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-file-plus"/></svg>
+          <span class="menu-label" data-i18n="New file">New file</span>
+        </button>
+        <div class="menu-sep" role="separator"></div>
+        <button class="menu-item" role="menuitem" type="button" data-action="upload">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-upload"/></svg>
+          <span class="menu-label" data-i18n="File upload">File upload</span>
+        </button>
+        <button class="menu-item" role="menuitem" type="button" data-action="upload-folder">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-folder-plus"/></svg>
+          <span class="menu-label" data-i18n="Upload folder">Upload folder</span>
+        </button>
+        <button class="menu-item" role="menuitem" type="button" data-action="url">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-link"/></svg>
+          <span class="menu-label" data-i18n="Download from URL">Download from URL</span>
+        </button>
+      </div>
+    </div>
+
+    <nav id="tree-views" class="rail-views" aria-label="Folder tree">
+      <div id="folder-tree" class="folder-tree"></div>
+    </nav>
+
+    <div class="rail-foot">
+    <!-- View switch lives in the topbar on desktop; on phones the topbar has
+         no room, so the same controls are reachable from the drawer. -->
+      <div id="storage-bar" class="storage" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="storage-track"><div id="storage-fill" class="storage-fill"></div></div>
+        <div class="storage-text">
+          <svg class="i" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-drive"/></svg>
+          <span class="storage-label" id="storage-label" data-i18n="Storage">Storage</span>
+          <span class="storage-value" id="storage-value"></span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ---------- content column ---------- -->
+  <div class="content">
+
+    <div id="topbar">
+      <button id="rail-open" class="btn btn-icon rail-open-btn" type="button" aria-label="Open sidebar" aria-expanded="false" aria-controls="rail">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-panel"/></svg>
+      </button>
+      <div class="spacer"></div>
+      <div class="upload-wrap">
+        <button id="upload-btn" class="btn btn-primary upload-btn" hidden type="button" aria-label="Upload" aria-haspopup="menu" aria-expanded="false" aria-controls="upload-menu">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-upload"/></svg>
+          <span class="upload-btn-label">Upload</span>
+        </button>
+      </div>
+      <button id="view-toggle" class="btn btn-icon" type="button" aria-label="Switch to grid view" aria-pressed="false" title="Switch view">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-grid" id="view-toggle-icon"/></svg>
+      </button>
+      <button id="theme-toggle" class="btn btn-icon" type="button" aria-label="Toggle theme" data-action="theme">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-moon"/></svg>
+      </button>
+      <button id="signin-btn" class="btn btn-icon signin-btn" type="button" aria-label="Sign in" data-action="signin" hidden>
+          <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logout"/></svg>
+        </button>
+        <div class="user-wrap">
+        <button id="user-btn" class="btn btn-avatar" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu" aria-label="Account">
+          <span id="user-avatar" class="avatar" aria-hidden="true">?</span>
+        </button>
+        <div id="user-menu" class="menu surface" role="menu" aria-label="Account" hidden>
+          <button class="menu-item" role="menuitem" type="button" data-action="admin">
+            <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg>
+            <span class="menu-label" data-i18n="Users">Users</span>
+          </button>
+          <button class="menu-item" role="menuitem" type="button" data-action="settings">
+            <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg>
+            <span class="menu-label" data-i18n="Settings">Settings</span>
+          </button>
+          <button class="menu-item" role="menuitem" type="button" data-action="theme">
+            <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-moon"/></svg>
+            <span class="menu-label" data-i18n="Theme">Theme</span>
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <button class="menu-item" role="menuitem" type="button" data-action="logout">
+            <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logout"/></svg>
+            <span class="menu-label" data-i18n="Sign out">Sign out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- selection action bar (hidden until sel>0) -->
+    <div id="selbar" class="selbar" role="toolbar" aria-label="Selection actions" hidden>
+      <button id="sel-count" class="sel-count" type="button" aria-label="Clear selection">0</button>
+      <span class="sel-sep" aria-hidden="true"></span>
+      <button class="btn btn-icon sel-btn" type="button" data-action="download" aria-label="Download">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg>
+      </button>
+      <button class="btn btn-icon sel-btn" type="button" data-action="move" aria-label="Move to">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-move"/></svg>
+      </button>
+      <button class="btn btn-icon sel-btn" type="button" data-action="copy" aria-label="Copy to">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-copy"/></svg>
+      </button>
+      <button class="btn btn-icon sel-btn" type="button" data-action="compress-zip" aria-label="Compress as zip">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-archive"/></svg>
+      </button>
+      <button class="btn btn-icon sel-btn" type="button" data-action="props" aria-label="Properties">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-info"/></svg>
+      </button>
+      <button class="btn btn-icon sel-btn" type="button" data-action="delete" aria-label="Delete">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trash"/></svg>
+      </button>
+    </div>
+
+    <div id="check-hint" class="check-hint" hidden>Check mode — click to select, Esc to exit</div>
+  <div id="crumbs-row" class="crumbs-row">
+      <nav id="breadcrumb" class="crumbs" aria-label="Breadcrumb"></nav>
+    </div>
+
+    <!-- main browser -->
+    <section id="main" aria-label="Files">
+      <div id="colhead" class="list-head" role="row">
+        <div class="col col-check" role="columnheader">
+          <label class="cb" title="Select all">
+            <input id="sel-all" type="checkbox" aria-label="Select all">
+            <span class="cb-box" aria-hidden="true"><svg class="i cb-mark" viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+          </label>
+        </div>
+        <div class="col col-name" role="columnheader">
+          <button class="col-sort" type="button" data-sort="name" aria-label="Sort by name"><span data-i18n="Name">Name</span><svg class="i sort-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        </div>
+        <div class="col col-size" role="columnheader">
+          <button class="col-sort" type="button" data-sort="size" aria-label="Sort by size"><span data-i18n="Size">Size</span><svg class="i sort-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        </div>
+        <div class="col col-time" role="columnheader">
+          <button class="col-sort" type="button" data-sort="time" aria-label="Sort by modified date"><span data-i18n="Modified">Modified</span><svg class="i sort-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        </div>
+        <div class="col col-type" role="columnheader">
+          <button class="col-sort" type="button" data-sort="type" aria-label="Sort by type"><span data-i18n="Type">Type</span><svg class="i sort-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        </div>
+      </div>
+      <div id="list-rows" class="list-rows" role="listbox" aria-multiselectable="true" tabindex="0" aria-label="File list"></div>
+      <div id="grid-tiles" class="grid-tiles" hidden role="listbox" aria-multiselectable="true" tabindex="0" aria-label="Grid view"></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <svg class="i" width="44" height="44" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-folder-open"/></svg>
+        <p class="empty-text" data-i18n="No files here">No files here</p>
+        <p class="empty-hint" data-i18n="Drop files to upload">Drop files to upload</p>
+      </div>
+      <div id="dropzone" class="dropzone" aria-hidden="true"><span class="drop-pill">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-upload"/></svg>
+        <span data-i18n="Drop to upload">Drop to upload</span></span></div>
+    </section>
+
+    <!-- activity tray (bottom-left) -->
+    <aside id="tray" class="tray collapsed" aria-label="Activity" hidden>
+      <button id="tray-head" class="tray-head" type="button" aria-expanded="false" aria-controls="tray-list">
+        <span class="tray-busy" id="tray-busy" hidden><span class="spinner"></span></span>
+        <span class="tray-title" data-i18n="Activity">Activity</span>
+        <span class="tray-count" id="tray-count">0</span>
+        <svg class="i tray-caret" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-caret-up"/></svg>
+      </button>
+      <div id="tray-list" class="tray-list" role="log" aria-live="polite"></div>
+    </aside>
+  </div>
+</main>
+
+<!-- ---------- context menu (hidden) ---------- -->
+<div id="ctx-menu" class="menu surface ctx-menu" role="menu" aria-label="Actions" hidden>
+  <button class="menu-item" role="menuitem" type="button" data-action="quickview">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow-up-right"/></svg>
+    <span class="menu-label" data-i18n="Open">Open</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="download">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg>
+    <span class="menu-label" data-i18n="Download">Download</span>
+  </button>
+  <div class="menu-sep" role="separator"></div>
+  <button class="menu-item" role="menuitem" type="button" data-action="newfile">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-file-plus"/></svg>
+    <span class="menu-label" data-i18n="New file here">New file here</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="mkdir">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-folder-plus"/></svg>
+    <span class="menu-label" data-i18n="New folder here">New folder here</span>
+  </button>
+  <div class="menu-sep" role="separator"></div>
+  <button class="menu-item" role="menuitem" type="button" data-action="rename">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-edit"/></svg>
+    <span class="menu-label" data-i18n="Rename">Rename</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="copy">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-copy"/></svg>
+    <span class="menu-label" data-i18n="Copy to…">Copy to…</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="move">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-move"/></svg>
+    <span class="menu-label" data-i18n="Move to…">Move to…</span>
+  </button>
+  <div class="menu-sep" role="separator"></div>
+  <button class="menu-item" id="ctx-compress" role="menuitem" type="button" data-action="compress">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-archive"/></svg>
+    <span class="menu-label" data-i18n="Compress">Compress</span>
+  </button>
+  <div class="menu-group" id="ctx-extract" role="group" aria-label="Extract">
+    <div class="menu-group-title" data-i18n="Extract">Extract</div>
+    <button class="menu-item menu-indent" role="menuitem" type="button" data-action="extract-here">
+      <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-unarchive"/></svg>
+      <span class="menu-label" data-i18n="Extract here">Extract here</span>
+    </button>
+    <button class="menu-item menu-indent" role="menuitem" type="button" data-action="extract-folder">
+      <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-unarchive"/></svg>
+      <span class="menu-label" data-i18n="Extract to folder">Extract to folder</span>
+    </button>
+  </div>
+  <button class="menu-item" role="menuitem" type="button" data-action="chmod">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg>
+    <span class="menu-label" data-i18n="Set permissions">Set permissions</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="hash">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hash"/></svg>
+    <span class="menu-label" data-i18n="Compute hash">Compute hash</span>
+  </button>
+  <button class="menu-item" role="menuitem" type="button" data-action="props">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-info"/></svg>
+    <span class="menu-label" data-i18n="Properties">Properties</span>
+  </button>
+  <div class="menu-sep" role="separator"></div>
+  <button class="menu-item menu-danger" role="menuitem" type="button" data-action="delete">
+    <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trash"/></svg>
+    <span class="menu-label" data-i18n="Delete">Delete</span>
+  </button>
+</div>
+
+<!-- ---------- modal + toast roots ---------- -->
+<div id="modal-root"></div>
+<div id="toast-root" role="status" aria-live="polite"></div>
+
+<!-- ---------- settings sheet ---------- -->
+<div id="settings-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <div class="sheet-backdrop" data-close="settings"></div>
+  <div class="sheet-panel">
+    <div class="sheet-head">
+      <h2 id="settings-title" data-i18n="Settings">Settings</h2>
+      <button class="btn btn-icon" type="button" data-action="settings-close" aria-label="Close settings">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="Theme">Theme</span><small data-i18n="Follows system unless overridden.">Follows system unless overridden.</small></div>
+        <select id="set-theme" class="select" aria-label="Theme">
+          <option value="auto" data-i18n="Auto">Auto</option>
+          <option value="light" data-i18n="Light">Light</option>
+          <option value="dark" data-i18n="Dark">Dark</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="Language">Language</span><small data-i18n="UI language.">UI language.</small></div>
+        <select id="set-lang" class="select" aria-label="Language">
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="List density">List density</span><small data-i18n="Row height in list view.">Row height in list view.</small></div>
+        <select id="set-density" class="select" aria-label="List density">
+          <option value="comfortable" data-i18n="Comfortable">Comfortable</option>
+          <option value="compact" data-i18n="Compact">Compact</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="Show hidden files">Show hidden files</span><small data-i18n="Names matching hidden patterns.">Names matching hidden patterns.</small></div>
+        <label class="switch"><input id="set-hidden" type="checkbox" aria-label="Show hidden files"><span class="sw-track" aria-hidden="true"><span class="sw-thumb"></span></span></label>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="Upload chunk size">Upload chunk size</span><small data-i18n="Resumable upload chunk size.">Resumable upload chunk size.</small></div>
+        <select id="set-chunk" class="select" aria-label="Upload chunk size">
+          <option value="1">1 MB</option><option value="2">2 MB</option><option value="5">5 MB</option><option value="10">10 MB</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div class="set-label"><span data-i18n="Default extract folder">Default extract folder</span><small data-i18n="Where archives unpack by default.">Where archives unpack by default.</small></div>
+        <select id="set-extract" class="select" aria-label="Default extract folder">
+          <option value="same" data-i18n="Same folder">Same folder</option>
+          <option value="sub" data-i18n="New subfolder">New subfolder</option>
+        </select>
+      </div>
+      <div id="settings-extra" class="settings-extra"></div>
+    </div>
+    <div class="sheet-foot">
+      <button id="settings-save" class="btn btn-primary" type="button" data-i18n="Save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- upload modal: two compact choices (files+folder, or URL) + status ---------- -->
+<div id="upload-modal" class="modal-wrap upload-modal" role="dialog" aria-modal="true" aria-labelledby="up-title" hidden>
+  <div class="modal upload-card">
+    <div class="modal-title-row">
+      <h2 id="up-title" class="modal-title">Upload</h2>
+      <button id="up-close" class="btn btn-icon" type="button" data-action="upload-close" aria-label="Close">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="up-panes">
+      <div class="up-dest" id="up-dest">To: /</div>
+      <div class="up-pane is-on" data-up-pane="files">
+        <div id="up-drop" class="up-drop" tabindex="0" role="button" aria-label="Choose files or drop them here">
+          <svg class="i" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-upload"/></svg>
+          <p class="up-drop-title">Drop files here</p>
+          <p class="up-drop-sub">or tap to choose</p>
+        </div>
+        <button id="up-folder" class="btn up-folder-btn" type="button">
+          <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-folder-plus"/></svg>
+          <span>Upload a folder</span>
+        </button>
+      </div>
+      <div class="up-pane" data-up-pane="url">
+        <form id="up-url-form" class="up-url">
+          <label class="fld">
+            <span class="fld-label">File URL</span>
+            <input id="up-url" class="fld-input" type="url" placeholder="https://example.com/file.zip" autocomplete="off" spellcheck="false">
+          </label>
+          <button id="up-url-go" class="btn btn-primary" type="submit">Download</button>
+        </form>
+      </div>
+    </div>
+    <div class="up-foot">
+      <button class="up-tab" type="button" data-up-tab="files" aria-pressed="true">
+        <svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-upload"/></svg>
+        <span>Files</span>
+      </button>
+      <button class="up-tab" type="button" data-up-tab="url" aria-pressed="false">
+        <svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-link"/></svg>
+        <span>From URL</span>
+      </button>
+    </div>
+    <div id="up-list" class="up-list" hidden></div>
+  </div>
+</div>
+
+<!-- ---------- admin: users + permissions ---------- -->
+<div id="admin-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="adm-title" hidden>
+  <div class="sheet-backdrop" data-close="admin"></div>
+  <div class="sheet-panel adm-sheet-panel">
+    <div class="sheet-head">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg class="i" width="20" height="20" viewBox="0 0 24 24" style="color:var(--accent);"><use href="#i-users"/></svg>
+        <h2 id="adm-title" style="margin:0;font-size:16px;font-weight:600;">Users &amp; Access Control</h2>
+      </div>
+      <button id="adm-close" class="btn btn-icon" type="button" data-action="admin-close" aria-label="Close">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div class="adm-body">
+      <!-- Section 1: Public Access -->
+      <div class="adm-card">
+        <div class="adm-card-header">
+          <div>
+            <div class="adm-sec-title">Public Access</div>
+            <div class="adm-sec-sub">Allow guests without login to browse files.</div>
+          </div>
+          <label class="adm-switch">
+            <input type="checkbox" id="adm-pub-toggle">
+            <span class="adm-slider"></span>
+          </label>
+        </div>
+        <div id="adm-pub-config" class="adm-subbox" style="display:none;margin-top:8px;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <label style="font-size:12px;color:var(--muted);min-width:65px;">Directory:</label>
+            <input id="adm-pub-path" class="adm-input" type="text" value="/Public" placeholder="/Public" spellcheck="false" style="font-family:ui-monospace,monospace;">
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="font-size:12px;color:var(--muted);min-width:65px;">Rights:</label>
+            <div class="adm-perms-row">
+              <label class="adm-chip"><input type="checkbox" id="adm-pub-r" checked><span>Read (R)</span></label>
+              <label class="adm-chip"><input type="checkbox" id="adm-pub-u"><span>Upload (U)</span></label>
+              <label class="adm-chip"><input type="checkbox" id="adm-pub-w"><span>Write (W)</span></label>
+              <label class="adm-chip"><input type="checkbox" id="adm-pub-d"><span>Delete (D)</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: User Accounts & Permissions -->
+      <div class="adm-card" style="margin-top:10px;">
+        <div class="adm-card-header" style="margin-bottom:8px;">
+          <div>
+            <div class="adm-sec-title">User Accounts</div>
+            <div class="adm-sec-sub">Permissions and passwords configured directly per user.</div>
+          </div>
+        </div>
+        <div id="adm-users" class="adm-users-container"></div>
+      </div>
+
+      <!-- Section 3: Add User -->
+      <div class="adm-card" style="margin-top:10px;">
+        <div class="adm-sec-title" style="margin-bottom:2px;">Add User Account</div>
+        <div class="adm-sec-sub" style="margin-bottom:8px;">Create a new user with home folder and initial permissions.</div>
+        <div class="adm-inputs-row">
+          <input id="adm-user-name" class="adm-input" type="text" autocomplete="off" spellcheck="false" placeholder="Username">
+          <input id="adm-user-pass" class="adm-input" type="password" autocomplete="new-password" placeholder="Password">
+          <input id="adm-user-home" class="adm-input" type="text" value="/" spellcheck="false" placeholder="Home directory e.g. /">
+          <button id="adm-user-add" class="btn btn-primary sm" type="button" style="white-space:nowrap;">+ Add</button>
+        </div>
+      </div>
+
+      <!-- Section 4: Advanced (Raw acl.conf) -->
+      <details class="adm-raw-box" style="margin-top:10px;">
+        <summary style="cursor:pointer;font-size:11px;color:var(--muted);">Advanced: Raw acl.conf</summary>
+        <textarea id="adm-acl" class="adm-raw-acl" spellcheck="false" rows="5" aria-label="Raw permission rules"></textarea>
+        <div class="adm-raw-path">Config file: <code id="adm-aclpath"></code></div>
+      </details>
+    </div>
+
+    <div class="sheet-foot adm-foot">
+      <button id="adm-acl-save" class="btn btn-primary" type="button">Save Permissions</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- quickview modal ---------- -->
+<div id="quickview" class="quickview" role="dialog" aria-modal="true" aria-labelledby="qv-name" hidden>
+  <div class="qv-head">
+    <button class="btn btn-icon" type="button" data-action="quickview-close" aria-label="Close">
+      <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+    </button>
+    <div class="qv-title-wrap">
+      <h2 id="qv-name" class="qv-name"></h2>
+      <p id="qv-meta" class="qv-meta"></p>
+      
+    </div>
+    <div class="qv-actions">
+      <button id="qv-edit" class="btn btn-icon" type="button" data-action="edit" aria-label="Open in editor">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-edit"/></svg>
+      </button>
+      <button class="btn btn-icon" type="button" data-action="download" aria-label="Download">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="qv-body" class="qv-body"></div>
+</div>
+
+<!-- ---------- editor drawer ---------- -->
+<section id="editor" class="drawer" role="dialog" aria-modal="false" aria-labelledby="ed-name" hidden>
+  <div class="ed-head">
+    <button id="ed-close" class="btn btn-icon" type="button" data-action="editor-close" aria-label="Close editor">
+      <svg class="i" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow-left"/></svg>
+    </button>
+    <input id="ed-name" class="ed-name" type="text" spellcheck="false" aria-label="File name" title="File name">
+    <span id="ed-badge" class="ed-badge" hidden>—</span>
+    <div class="spacer"></div>
+    <button id="ed-revert" class="btn" type="button" data-action="editor-revert"><span data-i18n="Revert">Revert</span></button>
+    <button id="ed-save" class="btn btn-primary" type="button" data-action="save"><span data-i18n="Save">Save</span></button>
+  </div>
+  <div id="ed-wrap" class="ed-wrap">
+    <pre id="ed-lines" class="ed-lines" aria-hidden="true">1</pre>
+    <div id="ed-editor" class="ed-editor">
+      <textarea id="ed-code" class="ed-code" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Editor content"></textarea>
+    </div>
+  </div>
+  <footer id="ed-status" class="ed-status">0:1</footer>
+</section>
+
+<!-- ============ hidden templates (markup js clones; fill via class slots) ============ -->
+<template id="tpl-row">
+  <div class="frow" role="option" aria-selected="false" tabindex="-1">
+    <div class="col col-check"><label class="cb"><input type="checkbox" aria-label="Select file"><span class="cb-box" aria-hidden="true"><svg class="i cb-mark" viewBox="0 0 24 24"><use href="#i-check"/></svg></span></label></div>
+    <div class="col col-name">
+      <svg class="i fic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use class="use-ic" href="#i-file"/></svg>
+      <button class="fname" type="button" data-action="open"><span class="fname-text"></span></button>
+    </div>
+    <div class="col col-size"></div>
+    <div class="col col-time"></div>
+    <div class="col col-type"></div>
+    <div class="col col-act"><button class="btn btn-icon row-more" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">
+      <svg class="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-more"/></svg></button></div>
+  </div>
+</template>
+
+<template id="tpl-tile">
+  <div class="tile" role="option" aria-selected="false" tabindex="-1">
+    <label class="cb tile-check"><input type="checkbox" aria-label="Select file"><span class="cb-box" aria-hidden="true"><svg class="i cb-mark" viewBox="0 0 24 24"><use href="#i-check"/></svg></span></label>
+    <div class="tile-media">
+      <img class="thumb" hidden alt="" loading="lazy" decoding="async">
+      <svg class="i fic tile-ic" width="44" height="44" viewBox="0 0 24 24" aria-hidden="true"><use class="use-ic" href="#i-file"/></svg>
+    </div>
+    <div class="tile-name" title=""></div>
+    <div class="tile-meta"></div>
+  </div>
+</template>
+
+<template id="tpl-tray-row">
+  <div class="trow" role="listitem">
+    <span class="trow-icon" aria-hidden="true"><span class="spinner"></span></span>
+    <div class="trow-main">
+      <div class="trow-line"><span class="trow-name"></span><span class="trow-pct"></span></div>
+      <div class="progress" role="progressbar" aria-label="Job progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill"></div></div>
+      <div class="trow-meta"><span class="trow-speed"></span><span class="trow-dot" aria-hidden="true">·</span><span class="trow-eta"></span></div>
+    </div>
+    <div class="trow-actions">
+      <button class="btn btn-icon trow-pause" type="button" data-action="job-pause" aria-label="Pause job" hidden>
+        <svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pause"/></svg></button>
+      <button class="btn btn-icon trow-retry" type="button" data-action="job-retry" aria-label="Retry job" hidden>
+        <svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+      <button class="btn btn-icon trow-cancel" type="button" data-action="job-cancel" aria-label="Cancel job">
+        <svg class="i" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-props-table">
+  <table class="props"><tbody>
+    <tr data-k="name"><th scope="row" data-i18n="Name">Name</th><td></td></tr>
+    <tr data-k="kind"><th scope="row" data-i18n="Kind">Kind</th><td></td></tr>
+    <tr data-k="size"><th scope="row" data-i18n="Size">Size</th><td></td></tr>
+    <tr data-k="mtime"><th scope="row" data-i18n="Modified">Modified</th><td></td></tr>
+    <tr data-k="path"><th scope="row" data-i18n="Path">Path</th><td></td></tr>
+    <tr data-k="mode"><th scope="row" data-i18n="Permissions">Permissions</th><td></td></tr>
+    <tr data-k="mime"><th scope="row" data-i18n="MIME type">MIME type</th><td></td></tr>
+  </tbody></table>
+</template>
+
+<!-- ============ inline icon sprite: js swaps use-href targets to #i-<icon> per extension ============ -->
+<svg class="sprite" aria-hidden="true"><defs>
+  <g id="i-logo" viewBox="0 0 24 24">
+    <!-- Clean hairline ribbon wordmark 'go' -->
+    <path fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill-rule="evenodd"
+          d="M 16.5 4.5 A 4.5 4.5 0 1 1 16.4 4.5 Z M 16.5 6.8 A 2.2 2.2 0 1 0 16.6 6.8 Z"/>
+    <path fill="currentColor" fill-opacity="0.12" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill-rule="evenodd"
+          d="M 7.5 4.5 C 10 4.5 12 6.5 12 9 L 12 14.5 C 12 17.5 9.8 19.5 7 19.5 C 4.2 19.5 2.5 17.8 2.5 15.5 C 2.5 14.2 3.5 13.2 4.8 13.2 C 6 13.2 7 14.2 7 15.5 C 7 16.2 7.5 16.8 8.2 16.8 C 9.4 16.8 10 15.8 10 14.5 L 10 13.6 C 9.2 14.4 8.2 14.8 7 14.8 C 4.2 14.8 2 12.5 2 9.5 C 2 6.5 4.5 4.5 7.5 4.5 Z M 7.5 6.8 C 6 6.8 4.8 8 4.8 9.5 C 4.8 11 6 12.2 7.5 12.2 C 9 12.2 10.2 11 10.2 9.5 C 10.2 8 9 6.8 7.5 6.8 Z"/>
+    <line x1="12" y1="6" x2="12" y2="14.5" stroke="currentColor" stroke-width="1.3" opacity="0.9"/>
+  </g>
+  <g id="i-folder"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></g>
+  <g id="i-folder-open"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V12"/><path d="M3.5 11h17.2l-1.9 6.6a2 2 0 0 1-1.9 1.4H5.5a2 2 0 0 1-2-1.6z"/></g>
+  <g id="i-folder-plus"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V12"/><path d="M3.5 9.5V17.5a2 2 0 0 0 2 2H13"/><path d="M17.5 15v6M14.5 18h6"/></g>
+  <g id="i-file"><path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4"/></g>
+  <g id="i-file-plus"><path d="M6.5 3.5h7l4 4v8"/><path d="M6.5 3.5v17H13"/><path d="M13.5 3.5v4h4"/><path d="M17.5 14v6M14.5 17h6"/></g>
+  <g id="i-download"><path d="M12 4v10m0 0 4-4m-4 4-4-4"/><path d="M5 18v1.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V18"/></g>
+  <g id="i-upload"><path d="M12 16V6m0 0 4 4m-4-4-4 4"/><path d="M5 18v1.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V18"/></g>
+  <g id="i-link"><path d="M9.5 14.5 14.5 9.5"/><path d="M11 7l1.8-1.8a3.9 3.9 0 0 1 5.6 0l.4.4a3.9 3.9 0 0 1 0 5.6L17 13"/><path d="M13 17l-1.8 1.8a3.9 3.9 0 0 1-5.6 0l-.4-.4a3.9 3.9 0 0 1 0-5.6L7 11"/></g>
+  <g id="i-search"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.4-4.4"/></g>
+  <g id="i-list"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></g>
+  <g id="i-grid"><rect x="4" y="4" width="7" height="7" rx="1.2"/><rect x="13" y="4" width="7" height="7" rx="1.2"/><rect x="4" y="13" width="7" height="7" rx="1.2"/><rect x="13" y="13" width="7" height="7" rx="1.2"/></g>
+  <g id="i-gear"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2.3M12 18.2v2.3M3.5 12h2.3M18.2 12h2.3M6 6l1.6 1.6M16.4 16.4 18 18M18 6l-1.6 1.6M7.6 16.4 6 18"/></g>
+  <g id="i-moon"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z"/></g>
+  <g id="i-logout"><path d="M15 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m15.5 12 4-4m-4 4 4 4"/><path d="M11 12h8.5"/></g>
+  <g id="i-trash"><path d="M4.5 7.5h15"/><path d="M9 7.5V5.2A1.2 1.2 0 0 1 10.2 4h3.6A1.2 1.2 0 0 1 15 5.2v2.3"/><path d="m6.5 7.5.8 11.2a2 2 0 0 0 2 1.8h5.4a2 2 0 0 0 2-1.8l.8-11.2"/><path d="M10 11v6M14 11v6"/></g>
+  <g id="i-info"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><path d="M12 8.2v.1"/></g>
+  <g id="i-check"><path d="M5 12.5l4.5 4.5L19 7.5"/></g>
+  <g id="i-more"><circle cx="12" cy="5.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="18.5" r="1.3"/></g>
+  <g id="i-caret"><path d="m7 10 5 5 5-5"/></g>
+  <g id="i-caret-up"><path d="m7 14 5-5 5 5"/></g>
+  <g id="i-chev-left"><path d="m14.5 6.5-5.5 5.5 5.5 5.5"/></g>
+  <g id="i-chev-right"><path d="m9.5 6.5 5.5 5.5-5.5 5.5"/></g>
+  <g id="i-arrow-left"><path d="M19 12H6"/><path d="m11 6.5-5.5 5.5L11 17.5"/></g>
+  <g id="i-arrow-up-right"><path d="M7.5 16.5 16.5 7.5"/><path d="M9 7.5h7.5V15"/></g>
+  <g id="i-move"><path d="M12 4v16M4 12h16"/><path d="m9 7 3-3 3 3M9 17l3 3 3-3M7 9l-3 3 3 3M17 9l3 3-3 3"/></g>
+  <g id="i-copy"><rect x="9" y="9" width="11" height="11" rx="1.8"/><path d="M15.5 9V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9A1.8 1.8 0 0 0 5.8 15.5H9"/></g>
+  <g id="i-edit"><path d="M4.5 19.5h4L20 8a2.1 2.1 0 0 0-3-3L5.5 16.5z"/><path d="m15 6.5 3 3"/></g>
+    <g id="i-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></g>
+  <g id="i-lock"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></g>
+  <g id="i-hash"><path d="M5 9h14M5 15h14M10 4.5 8.5 19.5M15.5 4.5 14 19.5"/></g>
+  <g id="i-archive"><rect x="4" y="4.5" width="16" height="5" rx="1"/><path d="M6 9.5V18a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9.5"/><path d="M10.5 13h3"/></g>
+  <g id="i-unarchive"><rect x="4" y="4.5" width="16" height="5" rx="1"/><path d="M6 9.5V18a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9.5"/><path d="M12 12.5v6m0 0 2.5-2.5M12 18.5 9.5 16"/></g>
+  <g id="i-image"><rect x="4" y="5.5" width="16" height="13" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m4.5 17 5-5 4.5 4.5 2.5-2 3 3"/></g>
+  <g id="i-video"><path d="M3.5 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z"/><path d="m16.5 10.5 4-2.5v8l-4-2.5"/></g>
+  <g id="i-audio"><path d="M9 17.5V6l10-2v11.5"/><ellipse cx="6.5" cy="17.5" rx="2.5" ry="2.2"/><ellipse cx="16.5" cy="15.5" rx="2.5" ry="2.2"/></g>
+  <g id="i-doc"><rect x="5" y="3.5" width="14" height="17" rx="1.8"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h5"/></g>
+  <g id="i-pdf"><path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M7.5 17v-4.5h1.5a1.2 1.2 0 0 1 0 2.4H7.5M11.5 12.5v4.5h1a2 2 0 0 0 0-4.5zM15.5 12.5h2.5M15.5 14.5h1.8M15.5 12.5v4.5" stroke-width="1.2"/></g>
+  <g id="i-code"><path d="m8.5 8-5 4 5 4M15.5 8l5 4-5 4M13.5 5.5l-3 13"/></g>
+  <g id="i-txt"><path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4"/><path d="M9 12.5h6M9 15.5h6M9 18.5h3.5"/></g>
+  <g id="i-panel"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M9.5 5v14"/></g>
+  <g id="i-drive" stroke="none"><path fill="currentColor" d="M9.6 3h4.8L20.5 13h-4.8Z"/><path fill="currentColor" d="M13.3 13 8 21.5h9.6L21.2 17Z" opacity=".75"/><path fill="currentColor" d="M10.7 13H3.5l2.8 5a2 2 0 0 0 1.8 1.1h2.6Z" opacity=".5"/></g>
+  <g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+  <g id="i-x"><path d="M6 6l12 12M18 6 6 18"/></g>
+  <g id="i-refresh"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.4h-3.4"/></g>
+  <g id="i-pause"><path d="M9 5.5v13M15 5.5v13"/></g>
+</defs></svg>
+
+<!-- scripts: window.__I18N__ injected in head (server string replacement); modules first, core app.js last -->
+<script src="__PREFIX__/assets/core.js" defer></script>
+<script src="__PREFIX__/assets/api.js" defer></script>
+<script src="__PREFIX__/assets/jobs.js?v=20261004e" defer></script>
+<script src="__PREFIX__/assets/browser.js" defer></script>
+<script src="__PREFIX__/assets/actions.js" defer></script>
+<script src="__PREFIX__/assets/viewer.js" defer></script>
+<script src="__PREFIX__/assets/editor.js" defer></script>
+
+<script src="__PREFIX__/assets/uploadmodal.js?v=20261004e" defer></script>
+<script src="__PREFIX__/assets/admin.js?v=20261004b" defer></script>
+<script src="__PREFIX__/assets/app.js" defer></script>
+</body>
+</html>
